@@ -1,0 +1,153 @@
+services:
+  ## ──────────────────────────────
+  ## AdGuard Home (DNS)
+  ## ──────────────────────────────
+  adguardhome:
+    image: adguard/adguardhome:latest
+    container_name: adguardhome
+    ports:
+      - "80:80"
+      - "443:443"
+      - "3600:3000"       # Web UI
+      - "53:53/tcp"       # DNS TCP
+      - "53:53/udp"       # DNS UDP
+    volumes:
+      - adguard_config:/opt/adguardhome/conf
+      - adguard_work:/opt/adguardhome/work
+    restart: unless-stopped
+    networks:
+      - home_monitoring
+
+  ## ──────────────────────────────
+  ## InfluxDB (for Telegraf)
+  ## ──────────────────────────────
+  influxdb:
+    image: influxdb:1.8
+    container_name: influxdb
+    ports:
+      - "8086:8086"
+    environment:
+      - INFLUXDB_DB=${INFLUXDB_DB}
+      - INFLUXDB_USER=${INFLUXDB_USER}
+      - INFLUXDB_USER_PASSWORD=${INFLUXDB_USER_PASSWORD}
+      - INFLUXDB_ADMIN_USER=${INFLUXDB_ADMIN_USER}
+      - INFLUXDB_ADMIN_PASSWORD=${INFLUXDB_ADMIN_PASSWORD}
+    volumes:
+      - influxdb:/var/lib/influxdb
+    restart: unless-stopped
+    networks:
+      - home_monitoring
+
+  ## ──────────────────────────────
+  ## Telegraf (Ping Monitor)
+  ## ──────────────────────────────
+  telegraf:
+    image: telegraf:latest
+    container_name: telegraf
+    environment:
+      - INFLUXDB_DB=${INFLUXDB_DB}
+      - INFLUXDB_USER=${INFLUXDB_USER}
+      - INFLUXDB_USER_PASSWORD=${INFLUXDB_USER_PASSWORD}
+      - ADGUARD_USER=${ADGUARD_USER}
+      - ADGUARD_PASSWORD=${ADGUARD_PASSWORD}
+    depends_on:
+      - influxdb
+    volumes:
+      - ./configs/telegraf.conf:/etc/telegraf/telegraf.conf:ro
+      - telegraf:/data:ro
+    restart: unless-stopped
+    networks:
+      - home_monitoring
+
+  ## ──────────────────────────────
+  ## Prometheus (System Metrics)
+  ## ──────────────────────────────
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: prometheus
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./configs/prometheus.yml:/etc/prometheus/prometheus.yml
+    restart: unless-stopped
+    networks:
+      - home_monitoring
+
+  ## ──────────────────────────────
+  ## Node Exporter (Host Metrics)
+  ## ──────────────────────────────
+  node-exporter:
+    image: prom/node-exporter:latest
+    container_name: node-exporter
+    ports:
+      - "9100:9100"
+    restart: unless-stopped
+    networks:
+      - home_monitoring
+
+  ## ──────────────────────────────
+  ## Loki (Log Storage)
+  ## ──────────────────────────────
+  loki:
+    image: grafana/loki:2.9.3
+    container_name: loki
+    ports:
+      - "3100:3100"
+    volumes:
+      - ./configs/loki-config.yaml:/etc/loki/local-config.yaml
+      - loki:/loki
+    command: -config.file=/etc/loki/local-config.yaml
+    restart: unless-stopped
+    networks:
+      - home_monitoring
+
+  ## ──────────────────────────────
+  ## Promtail (Log Collector)
+  ## ──────────────────────────────
+  promtail:
+    image: grafana/promtail:2.9.3
+    container_name: promtail
+    volumes:
+      - /var/log:/var/log:ro
+      - /etc/machine-id:/etc/machine-id:ro
+      - ./configs/promtail-config.yaml:/etc/promtail/config.yaml
+      - adguard_work:/opt/adguardhome/work/data:ro
+#      - ./services/suricata/data/log:/var/log/suricata:ro
+    restart: unless-stopped
+    networks:
+      - home_monitoring
+
+  ## ──────────────────────────────
+  ## Grafana (Shared)
+  ## ──────────────────────────────
+  grafana:
+    image: grafana/grafana:latest
+    container_name: grafana
+    ports:
+      - "3500:3000"
+    depends_on:
+      - influxdb
+      - prometheus
+      - loki
+    environment:
+      - GF_SECURITY_ADMIN_USER=${GF_SECURITY_ADMIN_USER}
+      - GF_SECURITY_ADMIN_PASSWORD=${GF_SECURITY_ADMIN_PASSWORD}
+      - GF_FEATURE_TOGGLES_ENABLE=${GF_FEATURE_TOGGLES_ENABLE}
+    volumes:
+      - grafana:/var/lib/grafana
+    restart: unless-stopped
+    networks:
+      - home_monitoring
+
+volumes:
+  influxdb:
+  grafana:
+  loki:
+  adguard_config:
+  adguard_work:
+  telegraf:
+
+networks:
+  home_monitoring:
+    name: home_monitoring
+    driver: bridge

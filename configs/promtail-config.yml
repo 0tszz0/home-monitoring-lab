@@ -1,0 +1,26 @@
+server:
+  http_listen_port: 9080
+  grpc_listen_port: 0
+
+clients:
+  - url: http://loki:3100/loki/api/v1/push
+
+positions:
+  filename: /tmp/positions.yaml
+
+scrape_configs:
+  - job_name: adguard_dns
+    static_configs:
+      - targets:
+          - localhost
+        labels:
+          job: adguard_dns
+          __path__: /opt/adguardhome/work/data/querylog.json
+
+#  - job_name: suricata
+#    static_configs:
+#      - targets:
+#          - localhost
+#        labels:
+#          job: suricata
+#          __path__: /var/log/suricata/eve.json

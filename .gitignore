@@ -1,0 +1,4 @@
+.env
+
+# Ignore Data from each service
+/data/

@@ -39,16 +39,14 @@ The entire setup is based on data coming into various services and then being pr
 - ARP Scans for network devices
 - nmap scans of open ports (planned)
 
+## Grafana Data Sources
+Go to Data Sources in Grafana and Add New Source
+
+- Prometheus : `http://prometheus:9090`
+- Loki : `http://loki:3100`
+- InfluxDB : `http://influxdb:8086`
+In the Database section, input the names of your DB, DB User and DB Password
+
 ## Grafana Dashboards
-### Home Network
-This dashboard provides information about devices in the home network and their status
-#### Panels
-- ARP Devices
-- Unknown MACs Detected
-- Total DNS Queries Per Second
-- DNS Queries Blocked Per Second
-
 ### Host Metrics
-Features all information available from Node Exporter
-
-* More Dashboards are under development / planning
+Import a new Dashboard with ID 1860 and use Prometheus as the data source

@@ -110,8 +110,8 @@ services:
     volumes:
       - /var/log:/var/log:ro
       - /etc/machine-id:/etc/machine-id:ro
-      - ./configs/promtail-config.yaml:/etc/promtail/config.yaml
-      - adguard_work:/opt/adguardhome/work/data:ro
+      - ./configs/promtail-config.yml:/etc/promtail/config.yml
+      - adguard_work:/mnt/adguard_work:ro
 #      - ./services/suricata/data/log:/var/log/suricata:ro
     restart: unless-stopped
     networks:

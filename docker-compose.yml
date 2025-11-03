@@ -8,9 +8,9 @@ services:
     ports:
       - "80:80"
       - "443:443"
-      - "3600:3000"       # Web UI
-      - "53:53/tcp"       # DNS TCP
-      - "53:53/udp"       # DNS UDP
+      - "3600:3000" # Web UI
+      - "53:53/tcp" # DNS TCP
+      - "53:53/udp" # DNS UDP
     volumes:
       - adguard_config:/opt/adguardhome/conf
       - adguard_work:/opt/adguardhome/work
@@ -21,19 +21,23 @@ services:
   ## ──────────────────────────────
   ## InfluxDB (for Telegraf)
   ## ──────────────────────────────
-  influxdb:
-    image: influxdb:1.8
-    container_name: influxdb
+  influxdb3:
+    image: influxdb:3-core
+    container_name: influxdb3
     ports:
-      - "8086:8086"
+      - "8181:8181"
+    command:
+      - influxdb3
+      - serve
+      - --node-id=${INFLUXDB_NODE_ID}
+      - --object-store=file
+      - --data-dir=/var/lib/influxdb3
     environment:
-      - INFLUXDB_DB=${INFLUXDB_DB}
-      - INFLUXDB_USER=${INFLUXDB_USER}
-      - INFLUXDB_USER_PASSWORD=${INFLUXDB_USER_PASSWORD}
+      - INFLUXDB_AUTH_TOKEN=${INFLUXDB_AUTH_TOKEN}
       - INFLUXDB_ADMIN_USER=${INFLUXDB_ADMIN_USER}
-      - INFLUXDB_ADMIN_PASSWORD=${INFLUXDB_ADMIN_PASSWORD}
+      - INFLUXDB_DATA_DIR=/var/lib/influxdb3
     volumes:
-      - influxdb:/var/lib/influxdb
+      - influxdb3:/var/lib/influxdb3
     restart: unless-stopped
     networks:
       - home_monitoring
@@ -45,13 +49,15 @@ services:
     image: telegraf:latest
     container_name: telegraf
     environment:
-      - INFLUXDB_DB=${INFLUXDB_DB}
-      - INFLUXDB_USER=${INFLUXDB_USER}
-      - INFLUXDB_USER_PASSWORD=${INFLUXDB_USER_PASSWORD}
+      - INFLUXDB_HOST=${INFLUXDB_HOST}
+      - INFLUXDB_AUTH_TOKEN=${INFLUXDB_AUTH_TOKEN}
+      - INFLUXDB_ORG=${INFLUXDB_ORG}
+      - INFLUXDB_BUCKET=${INFLUXDB_BUCKET}
+      - TELEGRAF_COLLECTION_INTERVAL=${TELEGRAF_COLLECTION_INTERVAL}
       - ADGUARD_USER=${ADGUARD_USER}
       - ADGUARD_PASSWORD=${ADGUARD_PASSWORD}
     depends_on:
-      - influxdb
+      - influxdb3
     volumes:
       - ./configs/telegraf.conf:/etc/telegraf/telegraf.conf:ro
       - telegraf:/data:ro
@@ -89,7 +95,7 @@ services:
   ## Loki (Log Storage)
   ## ──────────────────────────────
   loki:
-    image: grafana/loki:2.9.3
+    image: grafana/loki:latest
     container_name: loki
     ports:
       - "3100:3100"
@@ -105,14 +111,14 @@ services:
   ## Promtail (Log Collector)
   ## ──────────────────────────────
   promtail:
-    image: grafana/promtail:2.9.3
+    image: grafana/promtail:latest
     container_name: promtail
     volumes:
       - /var/log:/var/log:ro
       - /etc/machine-id:/etc/machine-id:ro
       - ./configs/promtail-config.yml:/etc/promtail/config.yml
       - adguard_work:/mnt/adguard_work:ro
-#      - ./services/suricata/data/log:/var/log/suricata:ro
+    #      - ./services/suricata/data/log:/var/log/suricata:ro
     restart: unless-stopped
     networks:
       - home_monitoring
@@ -126,7 +132,7 @@ services:
     ports:
       - "3500:3000"
     depends_on:
-      - influxdb
+      - influxdb3
       - prometheus
       - loki
     environment:
@@ -145,7 +151,7 @@ services:
       - home_monitoring
 
 volumes:
-  influxdb:
+  influxdb3:
   grafana:
   loki:
   adguard_config:
